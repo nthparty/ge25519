@@ -4,6 +4,8 @@ Native Python implementation of Ed25519 group elements and
 operations.
 """
 
+from __future__ import annotations
+from typing import Sequence
 from fe25519 import *
 import doctest
 
@@ -42,20 +44,20 @@ class ge25519():
         return 0
 
 class ge25519_p2(ge25519):
-    def __init__(self, X, Y, Z):
+    def __init__(self: ge25519_p2, X: fe25519, Y: fe25519, Z: fe25519):
         self.X = X
         self.Y = Y
         self.Z = Z
 
     @staticmethod
-    def from_p3(p):
+    def from_p3(p: ge25519_p3) -> ge25519_p2:
         return ge25519_p2(p.X.copy(), p.Y.copy(), p.Z.copy())
 
     @staticmethod
-    def from_p1p1(p):
+    def from_p1p1(p: ge25519_p1p1) -> ge25519_p2:
         return ge25519_p2(p.X * p.T, p.Y * p.Z, p.Z * p.T)
 
-    def dbl(self): # ge25519_p2_dbl()
+    def dbl(self: ge25519_p2) -> ge25519_p2: # ge25519_p2_dbl()
         p = self
         r = ge25519_p1p1(p.X**2, p.X + p.Y, p.Y**2, p.Z.sq2())
         t0 = r.Y ** 2
@@ -66,7 +68,14 @@ class ge25519_p2(ge25519):
         return r
 
 class ge25519_p3(ge25519):
-    def __init__(self, X = None, Y = None, Z = None, T = None, root_check = None):
+    def __init__(\
+            self: ge25519_p3, 
+            X: fe25519 = None, 
+            Y: fe25519 = None, 
+            Z: fe25519 = None,
+            T: fe25519 = None, 
+            root_check: bool = None
+        ):
         self.X = X
         self.Y = Y
         self.Z = Z
@@ -74,10 +83,10 @@ class ge25519_p3(ge25519):
         self.root_check = root_check
 
     @staticmethod
-    def zero():
+    def zero() -> ge25519_p3:
         return ge25519_p3(fe25519.zero(), fe25519.one(), fe25519.one(), fe25519.zero())
 
-    def is_on_curve(self):
+    def is_on_curve(self: ge25519_p3) -> int:
         d = fe25519([929955233495203, 466365720129213, 1662059464998953, 2033849074728123, 1442794654840575])
         x2 = self.X ** 2
         y2 = self.Y ** 2
@@ -93,16 +102,16 @@ class ge25519_p3(ge25519):
 
         return t0.is_zero()
 
-    def is_on_main_subgroup(self):
+    def is_on_main_subgroup(self: ge25519_p3) -> int:
         #ge25519_p3 pl;
         #ge25519_mul_l(&pl, p);
         #return fe25519_iszero(pl.X);
         return 1
 
-    def dbl(self):
+    def dbl(self: ge25519_p3) -> ge25519_p3:
         return ge25519_p2.from_p3(self).dbl()
 
-    def scalar_mult(self, a):
+    def scalar_mult(self: ge25519_p3, a: Sequence[int]) -> ge25519_p3:
         p = self
         pi = [None]*8 # ge25519_cached[8]
 
@@ -174,11 +183,11 @@ class ge25519_p3(ge25519):
         return ge25519_p3.from_p1p1(r)
 
     @staticmethod
-    def from_p1p1(p): #ge25519_p1p1_to_p3()
+    def from_p1p1(p: ge25519_p1p1) -> ge25519_p3:
         return ge25519_p3(p.X * p.T, p.Y * p.Z, p.Z * p.T, p.X * p.Y)
 
     @staticmethod
-    def from_bytes(bs):
+    def from_bytes(bs: bytes) -> ge25519_p3:
         h = ge25519_p3()
         d = fe25519([929955233495203, 466365720129213, 1662059464998953, 2033849074728123, 1442794654840575])
         sqrtm1 = fe25519([1718705420411056, 234908883556509, 2233514472574048, 2117202627021982, 765476049583133])
@@ -197,17 +206,17 @@ class ge25519_p3(ge25519):
         h.X = h.X * v
         h.X = h.X * u # x = uv^7
 
-        h.X = h.X.pow22523() # x = (uv^7)^((q-5)/8) */
+        h.X = h.X.pow22523() # x = (uv^7)^((q-5)/8)
         h.X = h.X * v3
-        h.X = h.X * u # x = uv^3(uv^7)^((q-5)/8) */
+        h.X = h.X * u # x = uv^3(uv^7)^((q-5)/8)
 
         vxx = h.X ** 2
         vxx = vxx * v
-        m_root_check = vxx - u # vx^2-u */
-        p_root_check = vxx + u # vx^2+u */
+        m_root_check = vxx - u # vx^2-u
+        p_root_check = vxx + u # vx^2+u
         has_m_root = m_root_check.is_zero()
         has_p_root = p_root_check.is_zero()
-        x_sqrtm1 = h.X * sqrtm1 # x*sqrt(-1) */
+        x_sqrtm1 = h.X * sqrtm1 # x*sqrt(-1)
         h.X = h.X.cmov(x_sqrtm1, 1 - has_m_root)
 
         negx = -h.X
@@ -217,7 +226,7 @@ class ge25519_p3(ge25519):
 
         return h
 
-    def to_bytes(self):
+    def to_bytes(self: ge25519_p3) -> bytearray:
         recip = self.Z.invert()
         x = self.X * recip
         y = self.Y * recip
@@ -227,14 +236,20 @@ class ge25519_p3(ge25519):
         return bs
 
 class ge25519_p1p1(ge25519):
-    def __init__(self, X = None, Y = None, Z = None, T = None):
+    def __init__(\
+            self: ge25519_p1p1, 
+            X: fe25519 = None, 
+            Y: fe25519 = None, 
+            Z: fe25519 = None,
+            T: fe25519 = None
+        ):
         self.X = X
         self.Y = Y
         self.Z = Z
         self.T = T
 
     @staticmethod
-    def add(p, q): #ge25519_add(p3, cached)
+    def add(p: ge25519_p3, q: ge25519_cached) -> ge25519_p1p1:
         r = ge25519_p1p1()
         r.X = p.Y + p.X
         r.Y = p.Y - p.X
@@ -250,17 +265,23 @@ class ge25519_p1p1(ge25519):
         return r
 
 class ge25519_cached(ge25519):
-    def __init__(self, YplusX, YminusX, Z, T2d):
+    def __init__(\
+            self: ge25519_cached,
+            YplusX: fe25519 = None,
+            YminusX: fe25519 = None,
+            Z: fe25519 = None,
+            T2d: fe25519 = None
+        ):
         self.YplusX = YplusX
         self.YminusX = YminusX
         self.Z = Z
         self.T2d = T2d
 
     @staticmethod
-    def zero():
+    def zero() -> ge25519_cached:
         return ge25519_cached(fe25519.one(), fe25519.one(), fe25519.one(), fe25519.zero())
 
-    def cmov_cached(self, u, b): #ge25519_cmov_cached()
+    def cmov_cached(self: ge25519_cached, u: ge25519_cached, b: int): #ge25519_cmov_cached()
         t = self
         t.YplusX = t.YplusX.cmov(u.YplusX, b)
         t.YminusX = t.YminusX.cmov(u.YminusX, b)
@@ -268,7 +289,7 @@ class ge25519_cached(ge25519):
         t.T2d = t.T2d.cmov(u.T2d, b)
 
     @staticmethod
-    def cmov8_cached(cached, b): #ge25519_cmov8_cached()
+    def cmov8_cached(cached: Sequence[ge25519_cached], b: int) -> ge25519_cached:
 
         def negative(b): #signed char b
             # 18446744073709551361..18446744073709551615: yes; 0..255: no
@@ -306,7 +327,7 @@ class ge25519_cached(ge25519):
         return t
 
     @staticmethod
-    def from_p3(p): #ge25519_p3_to_cached()
+    def from_p3(p: ge25519_p3) -> ge25519_cached:
         d2 = fe25519([1859910466990425, 932731440258426, 1072319116312658, 1815898335770999, 633789495995903])
         return ge25519_cached(p.Y + p.X, p.Y - p.X, p.Z.copy(), p.T * d2)
 
