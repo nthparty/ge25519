@@ -7,6 +7,9 @@ operations.
 from fe25519 import *
 import doctest
 
+def _signed_char(c):
+    return (c - 256) if c >= 128 else ((c + 256) if c < -128 else c)
+
 class Ge25519Error(Exception):
     """A general-purpose catch-all for any usage error."""
 
@@ -142,11 +145,11 @@ class ge25519_p3(ge25519):
 
         carry = 0 # signed char
         for i in range(63):
-            e[i] = signed_char(e[i] + carry) # signed char
-            carry = signed_char(e[i] + 8) # signed char
-            carry = signed_char(carry >> 4) # signed char
-            e[i] = signed_char(e[i] - (signed_char(carry * (1 << 4)))) # signed char   e[i] -= carry * ((signed char) 1 << 4)
-        e[63] = signed_char(e[63] + carry)
+            e[i] = _signed_char(e[i] + carry) # signed char
+            carry = _signed_char(e[i] + 8) # signed char
+            carry = _signed_char(carry >> 4) # signed char
+            e[i] = _signed_char(e[i] - (_signed_char(carry * (1 << 4)))) # signed char   e[i] -= carry * ((signed char) 1 << 4)
+        e[63] = _signed_char(e[63] + carry)
         # each e[i] is between -8 and 8
 
         h = ge25519_p3.zero()
@@ -266,8 +269,26 @@ class ge25519_cached(ge25519):
 
     @staticmethod
     def cmov8_cached(cached, b): #ge25519_cmov8_cached()
+
+        def negative(b): #signed char b
+            # 18446744073709551361..18446744073709551615: yes; 0..255: no
+            x = b % (2**64)
+            x >>= 63
+            return x % (2**8) # unsigned char
+
+        def equal(b, c): #signed char b, signed char c
+            ub = b % (2**8) # unsigned char
+            uc = c % (2**8) # unsigned char
+            x  = ub ^ uc; # 0: yes; 1..255: no
+            y  = x % (2**32) # 0: yes; 1..255: no
+
+            y = (y - 1) % (2**32)  # 4294967295: yes; 0..254: no
+            y >>= 31 # 1: yes; 0: no
+
+            return (y % (2**8)) # unsigned char
+
         bnegative = negative(b)
-        babs      = signed_char(b - signed_char((((-bnegative)%(2**8)) & signed_char(b)) * (1 << 1)))
+        babs      = _signed_char(b - _signed_char((((-bnegative)%(2**8)) & _signed_char(b)) * (1 << 1)))
 
         t = ge25519_cached.zero()
         t.cmov_cached(cached[0], equal(babs, 1))
