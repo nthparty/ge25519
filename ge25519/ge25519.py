@@ -395,6 +395,45 @@ class ge25519_p3(ge25519):
         bs[31] ^= (x.is_negative() << 7)
         return bs
 
+    def to_bytes_ristretto255(self: ge25519_p3) -> bytes:
+        h = self
+
+        u1 = h.Z + h.Y            # u1 = Z+Y
+        zmy = h.Z - h.Y           # zmy = Z-Y
+        u1 = u1 * zmy             # u1 = (Z+Y)*(Z-Y)
+        u2 = h.X * h.Y            # u2 = X*Y
+
+        u1_u2u2 = u2.sq()         # u1_u2u2 = u2^2
+        u1_u2u2 = u1 * u1_u2u2    # u1_u2u2 = u1*u2^2
+
+        (inv_sqrt, _) = ristretto255_sqrt_ratio_m1(fe25519.one(), u1_u2u2)
+        den1 = inv_sqrt * u1      # den1 = inv_sqrt*u1
+        den2 = inv_sqrt * u2      # den2 = inv_sqrt*u2
+        z_inv = den1 * den2       # z_inv = den1*den2
+        z_inv = z_inv * h.T       # z_inv = den1*den2*T
+
+        ix = h.X * fe25519.sqrtm1 # ix = X*sqrt(-1)
+        iy = h.Y * fe25519.sqrtm1 # iy = Y*sqrt(-1)
+        
+        eden = den1 * fe25519.invsqrtamd # eden = den1*sqrt(a-d)
+        t_z_inv = h.T * z_inv     # t_z_inv = T*z_inv
+        rotate = t_z_inv.is_negative()
+
+        (x_, y_) = (h.X.copy(), h.Y.copy())
+        den_inv = den2.copy()
+
+        x_ = x_.cmov(iy, rotate)
+        y_ = y_.cmov(ix, rotate)
+        den_inv = den_inv.cmov(eden, rotate)
+
+        x_z_inv = x_ * z_inv
+        y_ = y_.cneg(x_z_inv.is_negative())
+
+        s_ = h.Z - y_
+        s_ = den_inv * s_
+        s_ = abs(s_)
+        return s_.to_bytes()
+
 class ge25519_p1p1(ge25519):
     def __init__(\
             self: ge25519_p1p1, 
