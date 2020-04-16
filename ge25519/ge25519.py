@@ -406,7 +406,7 @@ class ge25519_p3(ge25519):
         u1_u2u2 = u2.sq()         # u1_u2u2 = u2^2
         u1_u2u2 = u1 * u1_u2u2    # u1_u2u2 = u1*u2^2
 
-        (inv_sqrt, _) = ristretto255_sqrt_ratio_m1(fe25519.one(), u1_u2u2)
+        (inv_sqrt, _) = fe25519.one().sqrt_ratio_m1_ristretto255(u1_u2u2)
         den1 = inv_sqrt * u1      # den1 = inv_sqrt*u1
         den2 = inv_sqrt * u2      # den2 = inv_sqrt*u2
         z_inv = den1 * den2       # z_inv = den1*den2
