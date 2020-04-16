@@ -386,6 +386,44 @@ class ge25519_p3(ge25519):
 
         return h
 
+    @staticmethod
+    def from_bytes_ristretto255(bs: bytes) -> ge25519_p3:
+        s_ = fe25519.from_bytes(bs)
+        ss = s_.sq()         # ss = bs^2
+
+        u1 = fe25519.one()
+        u1 = u1 - ss         # u1 = 1-ss
+        u1u1 = u1.sq()       # u1u1 = u1^2
+
+        u2 = fe25519.one()
+        u2 = u2 + ss         # u2 = 1+ss
+        u2u2 = u2.sq()       # u2u2 = u2^2
+
+        v = fe25519.d * u1u1 # v = d*u1^2
+        v = -v               # v = -d*u1^2
+        v = v - u2u2         # v = -(d*u1^2)-u2^2
+
+        v_u2u2 = v * u2u2    # v_u2u2 = v*u2^2
+
+        (inv_sqrt, was_square) = fe25519.one().sqrt_ratio_m1_ristretto255(v_u2u2)
+        
+        h = ge25519_p3()
+        h.X = inv_sqrt * u2
+        h.Y = inv_sqrt * h.X
+        h.Y = h.Y * v
+
+        h.X = h.X * s_
+        h.X = h.X + h.X
+        h.X = abs(h.X)
+        h.Y = u1 * h.Y
+        h.Z = fe25519.one()
+        h.T = h.X * h.Y
+
+        if ((1 - was_square) | h.T.is_negative() | h.Y.is_zero()) == 1:
+            return None
+
+        return h
+
     def to_bytes(self: ge25519_p3) -> bytearray:
         recip = self.Z.invert()
         x = self.X * recip
