@@ -349,6 +349,61 @@ class ge25519_p3(ge25519):
         return ge25519_p3(p.X * p.T, p.Y * p.Z, p.Z * p.T, p.X * p.Y)
 
     @staticmethod
+    def elligator2(r: fe25519, x_sign: int) -> bytes: #x_sign is a char
+        rr2 = r.sq2()
+        rr2.ns[0] += 1
+        rr2 = rr2.invert()
+        x = fe25519.curve25519_A * rr2
+        x = -x
+
+        x2 = x.sq()
+        x3 = x * x2
+        e = x3 + x
+        x2 = x2 * fe25519.curve25519_A
+        e = x2 + e
+
+        e = e.chi25519()
+
+        s = e.to_bytes()
+        e_is_minus_1 = s[1] & 1
+        negx = -x
+
+        x = x.cmov(negx, e_is_minus_1)
+        x2 = fe25519.zero()
+        x2 = x2.cmov(fe25519.curve25519_A, e_is_minus_1)
+        x = x - x2
+
+        # yed = (x-1)/(x+1)
+        one = fe25519.one()
+        yed = (x - one) * (x + one).invert()
+        s = yed.to_bytes()
+
+        # recover x
+        s[31] |= x_sign
+        p3 = ge25519_p3.from_bytes(s)
+        if p3.root_check != 0:
+            exit()
+
+        # multiply by the cofactor
+        
+        p1 = p3.dbl()
+        p2 = ge25519_p2.from_p1p1(p1)
+        p1 = p2.dbl()
+        p2 = ge25519_p2.from_p1p1(p1)
+        p1 = p2.dbl()
+        p3 = ge25519_p3.from_p1p1(p1)
+
+        return p3
+
+    @staticmethod
+    def from_uniform(r):
+        s = [b for b in r]
+        x_sign = s[31] & 0x80
+        s[31] &= 0x7f
+        r_fe = fe25519.from_bytes(s)
+        return ge25519_p3.elligator2(r_fe, x_sign)
+
+    @staticmethod
     def from_bytes(bs: bytes) -> ge25519_p3:
         h = ge25519_p3()
 
