@@ -24,3 +24,11 @@ The library can be imported in the usual ways::
 
     import ge25519
     from ge25519 import *
+
+Unit tests can be executed using `nose <https://nose.readthedocs.io/>`_::
+
+    nosetests
+
+Concise unit tests are implemented with the help of `fountains <https://pypi.org/project/fountains/>`_ and new reference bit lists for these tests can be generated in the following way::
+
+    python test/test_ge25519.py
