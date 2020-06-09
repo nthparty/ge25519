@@ -165,7 +165,7 @@ class ge25519_p3(ge25519):
     def dbl(self: ge25519_p3) -> ge25519_p1p1:
         return ge25519_p2.from_p3(self).dbl()
 
-    def mul_l(self):
+    def mul_l(self: ge25519_p3) -> ge25519_p3:
         A = self
         r = ge25519_p3()
 
@@ -273,7 +273,7 @@ class ge25519_p3(ge25519):
 
         return h
 
-    def scalar_mult(self: ge25519_p3, a: Sequence[int]) -> ge25519_p3:
+    def scalar_mult(self: ge25519_p3, a: bytes) -> ge25519_p3:
         p = self
         pi = [None]*8 # ge25519_cached[8]
 
@@ -349,7 +349,7 @@ class ge25519_p3(ge25519):
         return ge25519_p3(p.X * p.T, p.Y * p.Z, p.Z * p.T, p.X * p.Y)
 
     @staticmethod
-    def elligator2(r: fe25519, x_sign: int) -> bytes: #x_sign is a char
+    def elligator2(r: fe25519, x_sign: int) -> ge25519_p3: #x_sign is a char
         rr2 = r.sq2()
         rr2.ns[0] += 1
         rr2 = rr2.invert()
@@ -396,7 +396,7 @@ class ge25519_p3(ge25519):
         return p3
 
     @staticmethod
-    def from_uniform(r):
+    def from_uniform(r: bytes) -> ge25519_p3:
         s = [b for b in r]
         x_sign = s[31] & 0x80
         s[31] &= 0x7f
@@ -600,7 +600,8 @@ class ge25519_precomp(ge25519):
         return ge25519_precomp(fe25519.one(), fe25519.one(), fe25519.zero())
 
     @staticmethod
-    def cmov8_base(pos: int, b: int):
+    def cmov8_base(pos: int, b: int) -> ge25519_precomp:
+        # It is expected that the second argument is between -8 and 8.
         return ge25519_precomp.cmov8(ge25519_precomp.base[pos], b)
 
     @staticmethod
