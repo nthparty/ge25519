@@ -5,9 +5,9 @@ with open("README.rst", "r") as fh:
 
 setup(
     name="ge25519",
-    version="0.1.0.0",
+    version="0.1.0",
     packages=["ge25519",],
-    install_requires=["parts","bitlist","fe25519","fountains",],
+    install_requires=["fe25519","parts","bitlist","fountains",],
     license="MIT",
     url="https://github.com/lapets/ge25519",
     author="Andrei Lapets",
