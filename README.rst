@@ -25,6 +25,10 @@ The library can be imported in the usual ways::
     import ge25519
     from ge25519 import *
 
+Style conventions are enforced using `Pylint <https://www.pylint.org/>`_::
+
+    pylint ge25519
+
 Unit tests can be executed using `nose <https://nose.readthedocs.io/>`_::
 
     nosetests
