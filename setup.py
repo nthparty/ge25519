@@ -9,7 +9,7 @@ setup(
     packages=["ge25519",],
     install_requires=["fe25519","parts","bitlist","fountains",],
     license="MIT",
-    url="https://github.com/lapets/ge25519",
+    url="https://github.com/nthparty/ge25519",
     author="Andrei Lapets",
     author_email="a@lapets.io",
     description="Native Python implementation of Ed25519 "+\
