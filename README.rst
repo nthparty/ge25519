@@ -4,9 +4,14 @@ ge25519
 
 Native Python implementation of Ed25519 group elements and operations.
 
-.. image:: https://badge.fury.io/py/ge25519.svg
+|pypi| |travis|
+
+.. |pypi| image:: https://badge.fury.io/py/ge25519.svg
    :target: https://badge.fury.io/py/ge25519
    :alt: PyPI version and link.
+
+.. |travis| image:: https://travis-ci.com/nthparty/ge25519.svg?branch=master
+    :target: https://travis-ci.com/nthparty/ge25519
 
 Purpose
 -------
