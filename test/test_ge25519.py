@@ -16,6 +16,16 @@ def check_or_generate_operation(self, fun, lengths, bits):
     return check_or_generate(self, fs, bits)
 
 class Test_ge25519(TestCase):
+    def test_is_canonical(self, bits = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'):
+        def fun(bs):
+            return bitlist([ge25519.is_canonical(bs)])
+        return check_or_generate_operation(self, fun, [32], bits)
+
+    def test_has_small_order(self, bits = '0000000000000000000000000000000000000000000000000000000000000000'):
+        def fun(bs):
+            return bitlist([ge25519.has_small_order(bs)])
+        return check_or_generate_operation(self, fun, [32], bits)
+
     def test_is_on_curve(self, bits = '4dbd939e58fc59860feac3f1e63fa428519472415073f2ca850b662c25bbd05b'):
         def fun(bs):
             return bitlist([ge25519_p3.from_bytes(bs).is_on_curve()])
@@ -26,9 +36,15 @@ class Test_ge25519(TestCase):
             return bitlist([ge25519_p3.from_bytes(bs).is_on_main_subgroup()])
         return check_or_generate_operation(self, fun, [32], bits)
 
-    def test_dbl(self, bits = '37b1cbf6ef16f5a00e5470ecc6b4c93b20893bb308962300b2081e8aa7e8702a'):
+    def test_from_p3(self, bits = '37b1cbf6ef16f5a00e5470ecc6b4c93b20893bb308962300b2081e8aa7e8702a'):
         def fun(bs):
             p1p1 = ge25519_p2.from_p3(ge25519_p3.from_bytes(bs)).dbl()
+            return ge25519_p3.from_p1p1(p1p1).to_bytes()
+        return check_or_generate_operation(self, fun, [32], bits)
+
+    def test_dbl(self, bits = '37b1cbf6ef16f5a00e5470ecc6b4c93b20893bb308962300b2081e8aa7e8702a'):
+        def fun(bs):
+            p1p1 = ge25519_p1p1.dbl(ge25519_p3.from_bytes(bs))
             return ge25519_p3.from_p1p1(p1p1).to_bytes()
         return check_or_generate_operation(self, fun, [32], bits)
 
