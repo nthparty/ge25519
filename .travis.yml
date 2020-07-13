@@ -9,7 +9,10 @@ python:
 cache: pip
 install:
   - pip install pylint
+  - pip install coveralls
   - pip install .
 script:
   - pylint ge25519
   - nosetests
+after_success:
+  - coveralls
