@@ -389,7 +389,7 @@ class ge25519_p3(ge25519):
         s[31] |= x_sign
         p3 = ge25519_p3.from_bytes(s)
         if p3.root_check != 0:
-            sys.exit()
+            sys.exit() # pragma: no cover
 
         # multiply by the cofactor
         p1 = p3.dbl()
@@ -2055,4 +2055,4 @@ class ge25519_cached(ge25519):
         return ge25519_cached(p.Y + p.X, p.Y - p.X, p.Z.copy(), p.T * fe25519.d2)
 
 if __name__ == "__main__":
-    doctest.testmod()
+    doctest.testmod() # pragma: no cover
