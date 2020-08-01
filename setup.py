@@ -11,7 +11,7 @@ setup(
         "fe25519>=0.1.1",
         "parts>=0.2.1",
         "bitlist>=0.3.1",
-        "fountains>=0.2.0",
+        "fountains>=0.2.1",
     ],
     license="MIT",
     url="https://github.com/nthparty/ge25519",
