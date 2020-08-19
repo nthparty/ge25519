@@ -73,6 +73,10 @@ class Test_ge25519(TestCase):
         fun = lambda bs: ge25519_p3.from_uniform(bs).to_bytes()
         return check_or_generate_operation(self, fun, [32], bits)
 
+    def test_from_hash_ristretto255(self, bits = 'baf12de24e54deae0aa116816bf5eee23b1168c78e892372e08a9884de9d4c1b'):
+        fun = lambda bs: ge25519_p3.from_hash_ristretto255(bs)
+        return check_or_generate_operation(self, fun, [64], bits)
+
     def test_from_bytes_ristretto255(self, bits = '80200300300085008000260000000800008a006000800c041040800420130182'):
         def fun(bs):
             p3 = ge25519_p3.from_bytes_ristretto255(bs)
