@@ -356,6 +356,42 @@ class ge25519_p3(ge25519):
         return ge25519_p3(p.X * p.T, p.Y * p.Z, p.Z * p.T, p.X * p.Y)
 
     @staticmethod
+    def elligator_ristretto255(t: fe25519) -> ge25519_p3:
+        one = fe25519.one()
+        r =  t.sq()                        # r = t^2
+        r = fe25519.sqrtm1 * r             # r = sqrt(-1)*t^2
+        u = r + one                        # u = r+1
+        u = u * fe25519.onemsqd            # u = (r+1)*(1-d^2)
+        c = -fe25519.one()                 # c = -1
+
+        rpd = r + fe25519.d                # rpd = r*d
+        v = r * fe25519.d                  # v = r*d
+        v = c - v                          # v = c-r*d
+        v = v * rpd                        # v = (c-r*d)*(r+d)
+
+        (s, was_square) = u.sqrt_ratio_m1_ristretto255(v)
+        wasnt_square = 1-was_square
+        s_prime = s * t
+        s_prime = -abs(s_prime)            # s_prime = -|s*t|
+
+        s = s.cmov(s_prime, wasnt_square)
+        c = c.cmov(r, wasnt_square)
+
+        n = r - one                        # n = r-1
+        n = n * c                          # n = c*(r-1)
+        n = n * fe25519.sqdmone            # n = c*(r-1)*(d-1)^2
+        n = n - v                          # n =  c*(r-1)*(d-1)^2-v
+
+        w0 = s + s                         # w0 = 2s
+        w0 = w0 * v                        # w0 = 2s*v
+        w1 = n * fe25519.sqrtadm1          # w1 = n*sqrt(ad-1)
+        ss = s.sq()                        # ss = s^2
+        w2 = one - ss                      # w2 = 1-s^2
+        w3 = one + ss                      # w3 = 1+s^2
+
+        return ge25519_p3(w0 * w3, w2 * w1, w1 * w3, w0 * w2)
+
+    @staticmethod
     def elligator2(r: fe25519, x_sign: int) -> ge25519_p3: #x_sign is a char
         rr2 = r.sq2()
         rr2.ns[0] += 1
@@ -408,6 +444,13 @@ class ge25519_p3(ge25519):
         s[31] &= 0x7f
         r_fe = fe25519.from_bytes(s)
         return ge25519_p3.elligator2(r_fe, x_sign)
+
+    @staticmethod
+    def from_hash_ristretto255(h: bytes) -> bytes:
+        p0 = ge25519_p3.elligator_ristretto255(fe25519.from_bytes(bytes(h[:32])))
+        p1 = ge25519_p3.elligator_ristretto255(fe25519.from_bytes(bytes(h[32:])))
+        p_p1p1 = ge25519_p1p1.add(p0, ge25519_cached.from_p3(p1))
+        return ge25519_p3.from_p1p1(p_p1p1).to_bytes_ristretto255()
 
     @staticmethod
     def from_bytes(bs: bytes) -> ge25519_p3:
