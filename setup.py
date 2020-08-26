@@ -5,10 +5,10 @@ with open("README.rst", "r") as fh:
 
 setup(
     name="ge25519",
-    version="0.1.2",
+    version="0.2.0",
     packages=["ge25519",],
     install_requires=[
-        "fe25519>=0.1.2",
+        "fe25519>=0.2.0",
         "parts>=0.2.1",
         "bitlist>=0.3.1",
         "fountains>=0.2.1",
