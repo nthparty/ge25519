@@ -1,3 +1,7 @@
+"""
+Test suite containing functional unit tests for the exported primitives and
+classes.
+"""
 from parts import parts
 from bitlist import bitlist
 from fountains import fountains
@@ -101,7 +105,7 @@ class Test_ge25519(TestCase):
     def test_madd(self, bits = '4b4d0b3a86c787f295d53e4a42656ba2ba6123f14a819b3c2d544f574d0030bb'):
         def fun(bs):
             (p3, i, j) = (ge25519_p3.from_bytes(bs[:32]), bs[32]%32, (bs[32]//32)%8)
-            p2 = ge25519_p2.from_p1p1(ge25519_p1p1.madd(p3, ge25519_precomp.base[i][j]))
+            p2 = ge25519_p2.from_p1p1(ge25519_p1p1.madd(p3, ge25519_precomp._base[i][j]))
             return ge25519_p3.from_p1p1(p2.dbl()).to_bytes()
         return check_or_generate_operation(self, fun, [32, 1], bits)
 
@@ -116,7 +120,7 @@ class Test_ge25519(TestCase):
     def test_cmov8_base(self, bits = '450fa303840940b93e104413b952865464b0fffc8321b030ac956537029bf61e'):
         def fun(bs):
             (pos, b) = (bs[0]%32, (bs[0]//32)%8)
-            precomp = ge25519_precomp.cmov8_base(pos, b)
+            precomp = ge25519_precomp._cmov8_base(pos, b)
             return precomp.yplusx.to_bytes() +\
                 precomp.yminusx.to_bytes() +\
                 precomp.xy2d.to_bytes()
@@ -127,7 +131,7 @@ class Test_ge25519(TestCase):
             ((bs1, bs2), b) = (parts(bs, length=32), bs[-1]%2)
             cached1 = ge25519_cached.from_p3(ge25519_p3.from_bytes(bs1))
             cached2 = ge25519_cached.from_p3(ge25519_p3.from_bytes(bs2))
-            cached1.cmov_cached(cached2, b)
+            cached1._cmov_cached(cached2, b)
             return cached1.YplusX.to_bytes() +\
                 cached1.YminusX.to_bytes() +\
                 cached1.Z.to_bytes() +\

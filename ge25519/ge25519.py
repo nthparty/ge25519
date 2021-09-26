@@ -1,67 +1,81 @@
-"""Group element data structure and operations.
-
-Native Python implementation of Ed25519 group elements and
-operations.
 """
-
+Pure Python data structure for working with Ed25519 (and Ristretto)
+group elements and operations.
+"""
 from __future__ import annotations
-from typing import Sequence
+from typing import Sequence, NewType
 import doctest
 import sys
 from fe25519 import *
 
-TWO_TO_64 = 2**64
+# Constants and custom types used within this module.
+_TWO_TO_64 = 2 ** 64
+unsigned_char = NewType('unsigned_char', int)
+signed_char = NewType('signed_char', int)
 
-def _signed_char(c):
+def _signed_char(c: unsigned_char) -> signed_char:
+    """
+    Convert a Python integer representation of a byte value
+    from signed to unsigned.
+    """
     return (c - 256) if c >= 128 else ((c + 256) if c < -128 else c)
 
-class ge25519():
+class ge25519:
     """
-    Base class for group elements.
-    """
+    Base class for group elements representing elliptic curve points.
 
-    blacklist = None # Precomputed table.
+    The public interface of this class and those of derived classes are
+    defined primarily to support the representation of elliptic curve
+    points and the implementation of common operations over those points
+    (e.g., as in the `oblivious <https://pypi.org/project/oblivious>`_
+    library).
+    """
+    _blacklist = None # Precomputed table.
 
     @staticmethod
-    def _negative(b): #signed char b
+    def _negative(b: signed_char) -> unsigned_char:
         # 18446744073709551361..18446744073709551615: yes; 0..255: no
-        x = b % TWO_TO_64
+        x = b % _TWO_TO_64
         x >>= 63
-        return x % 256 # unsigned char
+        return x % 256
 
     @staticmethod
-    def _equal(b, c): #signed char b, signed char c
-        ub = b % 256 # unsigned char
-        uc = c % 256 # unsigned char
+    def _equal(b: signed_char, c: signed_char) -> unsigned_char:
+        ub: unsigned_char = b % 256
+        uc: unsigned_char = c % 256
         x = ub ^ uc  # 0: yes; 1..255: no
         y = x % 4294967296 # 0: yes; 1..255: no
 
         y = (y - 1) % 4294967296 # 4294967295: yes; 0..254: no
         y >>= 31 # 1: yes; 0: no
 
-        return y % 256 # unsigned char
+        return y % 256
 
     @staticmethod
     def is_canonical(s: bytes) -> int: # 32-byte input.
+        """
+        Determine whether a binary representation of an element is in
+        canonical form.
+        """
         c = (s[31] & 127) ^ 127
         for i in range(30, 0, -1):
             c |= s[i] ^ 255
 
-        c = (((c - 1)%4294967296) >> 8) % 256
-        d = (((237 - 1 - s[0])%4294967296) >> 8) % 256
+        c = (((c - 1) % 4294967296) >> 8) % 256
+        d = (((237 - 1 - s[0]) % 4294967296) >> 8) % 256
 
         return 1 - (c & d & 1)
 
     @staticmethod
     def has_small_order(s: bytes) -> int: # 32-byte input.
-        c = [0]*7 # unsigned char[7]
+        c: Sequence[unsigned_char] = [0]*7
         for j in range(31):
             for i in range(7):
-                c[i] |= s[j] ^ ge25519.blacklist[i][j]
+                c[i] |= s[j] ^ ge25519._blacklist[i][j]
 
         j = 31
         for i in range(7):
-            c[i] |= (s[j] & 0x7f) ^ ge25519.blacklist[i][j]
+            c[i] |= (s[j] & 0x7f) ^ ge25519._blacklist[i][j]
 
         k = 0
         for i in range(7):
@@ -69,7 +83,7 @@ class ge25519():
 
         return (k >> 8) & 1
 
-ge25519.blacklist = [
+ge25519._blacklist = [ # pylint: disable=W0212
     # 0 (order 4)
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -102,9 +116,8 @@ ge25519.blacklist = [
 
 class ge25519_p2(ge25519):
     """
-    Specialized class for group elements representing points.
+    Specialized class for group elements representing elliptic curve points.
     """
-
     def __init__(self: ge25519_p2, X: fe25519, Y: fe25519, Z: fe25519):
         self.X = X
         self.Y = Y
@@ -130,9 +143,8 @@ class ge25519_p2(ge25519):
 
 class ge25519_p3(ge25519):
     """
-    Specialized class for group elements representing points.
+    Specialized class for group elements representing elliptic curve points.
     """
-
     def __init__(
             self: ge25519_p3,
             X: fe25519 = None,
@@ -149,7 +161,114 @@ class ge25519_p3(ge25519):
 
     @staticmethod
     def zero() -> ge25519_p3:
+        """
+        Constant corresponding to the zero element.
+        """
         return ge25519_p3(fe25519.zero(), fe25519.one(), fe25519.one(), fe25519.zero())
+
+    @staticmethod
+    def from_bytes(bs: bytes) -> ge25519_p3:
+        """
+        Construct an element from its binary representation.
+        """
+        h = ge25519_p3()
+
+        h.Y = fe25519.from_bytes(bs)
+        h.Z = fe25519.one()
+        u = h.Y ** 2
+        v = u * fe25519.d
+        u = u - h.Z # u = y^2-1
+        v = v + h.Z # v = dy^2+1
+
+        v3 = v ** 2
+        v3 = v3 * v # v3 = v^3
+        v3 = v3 * v
+        h.X = v3 ** 2
+        h.X = h.X * v
+        h.X = h.X * u # x = uv^7
+
+        h.X = h.X.pow22523() # x = (uv^7)^((q-5)/8)
+        h.X = h.X * v3
+        h.X = h.X * u # x = uv^3(uv^7)^((q-5)/8)
+
+        vxx = h.X ** 2
+        vxx = vxx * v
+        m_root_check = vxx - u # vx^2-u
+        p_root_check = vxx + u # vx^2+u
+        has_m_root = m_root_check.is_zero()
+        has_p_root = p_root_check.is_zero()
+        x_sqrtm1 = h.X * fe25519.sqrtm1 # x*sqrt(-1)
+        h.X = h.X.cmov(x_sqrtm1, 1 - has_m_root)
+
+        negx = -h.X
+        h.X = h.X.cmov(negx, h.X.is_negative() ^ (bs[31] >> 7))
+        h.T = h.X * h.Y
+        h.root_check = (has_m_root | has_p_root) - 1
+
+        return h
+
+    @staticmethod
+    def from_bytes_ristretto255(bs: bytes) -> ge25519_p3:
+        """
+        Construct a Ristretto point from its binary representation.
+        """
+        s_ = fe25519.from_bytes(bs)
+        ss = s_.sq()         # ss = bs^2
+
+        u1 = fe25519.one()
+        u1 = u1 - ss         # u1 = 1-ss
+        u1u1 = u1.sq()       # u1u1 = u1^2
+
+        u2 = fe25519.one()
+        u2 = u2 + ss         # u2 = 1+ss
+        u2u2 = u2.sq()       # u2u2 = u2^2
+
+        v = fe25519.d * u1u1 # v = d*u1^2
+        v = -v               # v = -d*u1^2
+        v = v - u2u2         # v = -(d*u1^2)-u2^2
+
+        v_u2u2 = v * u2u2    # v_u2u2 = v*u2^2
+
+        (inv_sqrt, was_square) = fe25519.one().sqrt_ratio_m1_ristretto255(v_u2u2)
+
+        h = ge25519_p3()
+        h.X = inv_sqrt * u2
+        h.Y = inv_sqrt * h.X
+        h.Y = h.Y * v
+
+        h.X = h.X * s_
+        h.X = h.X + h.X
+        h.X = abs(h.X)
+        h.Y = u1 * h.Y
+        h.Z = fe25519.one()
+        h.T = h.X * h.Y
+
+        if ((1 - was_square) | h.T.is_negative() | h.Y.is_zero()) == 1:
+            return None
+
+        return h
+
+    @staticmethod
+    def from_hash_ristretto255(h: bytes) -> bytes:
+        """
+        Construct a Ristretto point from a hash value.
+        """
+        p0 = ge25519_p3.elligator_ristretto255(fe25519.from_bytes(bytes(h[:32])))
+        p1 = ge25519_p3.elligator_ristretto255(fe25519.from_bytes(bytes(h[32:])))
+        p_p1p1 = ge25519_p1p1.add(p0, ge25519_cached.from_p3(p1))
+        return ge25519_p3.from_p1p1(p_p1p1).to_bytes_ristretto255()
+
+    @staticmethod
+    def from_uniform(r: bytes) -> ge25519_p3:
+        s = list(r) # Copy.
+        x_sign = s[31] & 0x80
+        s[31] &= 0x7f
+        r_fe = fe25519.from_bytes(s)
+        return ge25519_p3.elligator2(r_fe, x_sign)
+
+    @staticmethod
+    def from_p1p1(p: ge25519_p1p1) -> ge25519_p3:
+        return ge25519_p3(p.X * p.T, p.Y * p.Z, p.Z * p.T, p.X * p.Y)
 
     def is_on_curve(self: ge25519_p3) -> int:
         x2 = self.X ** 2
@@ -176,7 +295,7 @@ class ge25519_p3(ge25519):
         A = self
         r = ge25519_p3()
 
-        aslide = [ # signed char [253]
+        aslide: Sequence[signed_char] = [
             13, 0,   0, 0, 0, -1, 0,  0,   0,  0, -11,   0,   0, 0,  0,  0,  0,
             -5, 0,   0, 0, 0,  0, 0, -3,   0,  0,   0,   0, -13, 0,  0,  0,  0,
             7,  0,   0, 0, 0,  0, 3,  0,   0,  0,   0, -13,   0, 0,  0,  0,  5,
@@ -248,19 +367,19 @@ class ge25519_p3(ge25519):
         # each e[i] is between 0 and 15
         # e[63] is between 0 and 7
 
-        carry = 0 # signed char
+        carry: signed_char = 0
         for i in range(63):
-            e[i] = _signed_char(e[i] + carry) # signed char
-            carry = _signed_char(e[i] + 8) # signed char
-            carry = _signed_char(carry >> 4) # signed char
+            e[i]: signed_char = _signed_char(e[i] + carry)
+            carry: signed_char = _signed_char(e[i] + 8)
+            carry: signed_char = _signed_char(carry >> 4)
             e[i] = _signed_char(e[i] - (_signed_char(carry * (1 << 4))))
         e[63] = _signed_char(e[63] + carry)
         # each e[i] is between -8 and 8
 
         h = ge25519_p3.zero()
 
-        for i in range(1,64,2):
-            t = ge25519_precomp.cmov8_base(i // 2, e[i])
+        for i in range(1, 64, 2):
+            t = ge25519_precomp._cmov8_base(i // 2, e[i]) # pylint: disable=W0212
             r = ge25519_p1p1.madd(h, t)
             h = ge25519_p3.from_p1p1(r)
 
@@ -273,16 +392,20 @@ class ge25519_p3(ge25519):
         r = s.dbl()
         h = ge25519_p3.from_p1p1(r)
 
-        for i in range(0,64,2):
-            t = ge25519_precomp.cmov8_base(i // 2, e[i])
+        for i in range(0, 64, 2):
+            t = ge25519_precomp._cmov8_base(i // 2, e[i]) # pylint: disable=W0212
             r = ge25519_p1p1.madd(h, t)
             h = ge25519_p3.from_p1p1(r)
 
         return h
 
     def scalar_mult(self: ge25519_p3, a: bytes) -> ge25519_p3:
+        """
+        Method that supports the implementation of a scalar
+        multiplication operation for elliptic curve points.
+        """
         p = self
-        pi = [None]*8 # ge25519_cached[8]
+        pi = [None] * 8 # ge25519_cached[8]
 
         pi[1 - 1] = ge25519_cached.from_p3(p) # p
 
@@ -314,18 +437,18 @@ class ge25519_p3(ge25519):
         p8 = ge25519_p3.from_p1p1(t8)
         pi[8 - 1] = ge25519_cached.from_p3(p8) # 8p = 2*4p
 
-        e = [None]*64 # signed chars
+        e: Sequence[signed_char] = [None]*64
         for i in range(32):
-            e[2 * i + 0] = (a[i] >> 0) & 15
-            e[2 * i + 1] = (a[i] >> 4) & 15
+            e[2 * i + 0]: signed_char = (a[i] >> 0) & 15
+            e[2 * i + 1]: signed_char = (a[i] >> 4) & 15
         # each e[i] is between 0 and 15
         # e[63] is between 0 and 7
 
-        carry = 0 # signed char
+        carry: signed_char = 0
         for i in range(63):
-            e[i] = _signed_char(e[i] + carry) # signed char
-            carry = _signed_char(e[i] + 8) # signed char
-            carry = _signed_char(carry >> 4) # signed char
+            e[i]: signed_char = _signed_char(e[i] + carry)
+            carry: signed_char = _signed_char(e[i] + 8)
+            carry: signed_char = _signed_char(carry >> 4)
             e[i] = _signed_char(e[i] - (_signed_char(carry * (1 << 4))))
         e[63] = _signed_char(e[63] + carry)
         # each e[i] is between -8 and 8
@@ -333,7 +456,7 @@ class ge25519_p3(ge25519):
         h = ge25519_p3.zero()
 
         for i in range(63, 0, -1):
-            t = ge25519_cached.cmov8_cached(pi, e[i])
+            t = ge25519_cached._cmov8_cached(pi, e[i]) # pylint: disable=W0212
 
             r = ge25519_p1p1.add(h, t)
             s = ge25519_p2.from_p1p1(r)
@@ -347,13 +470,9 @@ class ge25519_p3(ge25519):
 
             h = ge25519_p3.from_p1p1(r) # *16
 
-        t = ge25519_cached.cmov8_cached(pi, e[0])
+        t = ge25519_cached._cmov8_cached(pi, e[0]) # pylint: disable=W0212
         r = ge25519_p1p1.add(h, t)
         return ge25519_p3.from_p1p1(r)
-
-    @staticmethod
-    def from_p1p1(p: ge25519_p1p1) -> ge25519_p3:
-        return ge25519_p3(p.X * p.T, p.Y * p.Z, p.Z * p.T, p.X * p.Y)
 
     @staticmethod
     def elligator_ristretto255(t: fe25519) -> ge25519_p3:
@@ -437,98 +556,10 @@ class ge25519_p3(ge25519):
 
         return p3
 
-    @staticmethod
-    def from_uniform(r: bytes) -> ge25519_p3:
-        s = list(r) # Copy.
-        x_sign = s[31] & 0x80
-        s[31] &= 0x7f
-        r_fe = fe25519.from_bytes(s)
-        return ge25519_p3.elligator2(r_fe, x_sign)
-
-    @staticmethod
-    def from_hash_ristretto255(h: bytes) -> bytes:
-        p0 = ge25519_p3.elligator_ristretto255(fe25519.from_bytes(bytes(h[:32])))
-        p1 = ge25519_p3.elligator_ristretto255(fe25519.from_bytes(bytes(h[32:])))
-        p_p1p1 = ge25519_p1p1.add(p0, ge25519_cached.from_p3(p1))
-        return ge25519_p3.from_p1p1(p_p1p1).to_bytes_ristretto255()
-
-    @staticmethod
-    def from_bytes(bs: bytes) -> ge25519_p3:
-        h = ge25519_p3()
-
-        h.Y = fe25519.from_bytes(bs)
-        h.Z = fe25519.one()
-        u = h.Y ** 2
-        v = u * fe25519.d
-        u = u - h.Z # u = y^2-1
-        v = v + h.Z # v = dy^2+1
-
-        v3 = v ** 2
-        v3 = v3 * v # v3 = v^3
-        v3 = v3 * v
-        h.X = v3 ** 2
-        h.X = h.X * v
-        h.X = h.X * u # x = uv^7
-
-        h.X = h.X.pow22523() # x = (uv^7)^((q-5)/8)
-        h.X = h.X * v3
-        h.X = h.X * u # x = uv^3(uv^7)^((q-5)/8)
-
-        vxx = h.X ** 2
-        vxx = vxx * v
-        m_root_check = vxx - u # vx^2-u
-        p_root_check = vxx + u # vx^2+u
-        has_m_root = m_root_check.is_zero()
-        has_p_root = p_root_check.is_zero()
-        x_sqrtm1 = h.X * fe25519.sqrtm1 # x*sqrt(-1)
-        h.X = h.X.cmov(x_sqrtm1, 1 - has_m_root)
-
-        negx = -h.X
-        h.X = h.X.cmov(negx, h.X.is_negative() ^ (bs[31] >> 7))
-        h.T = h.X * h.Y
-        h.root_check = (has_m_root | has_p_root) - 1
-
-        return h
-
-    @staticmethod
-    def from_bytes_ristretto255(bs: bytes) -> ge25519_p3:
-        s_ = fe25519.from_bytes(bs)
-        ss = s_.sq()         # ss = bs^2
-
-        u1 = fe25519.one()
-        u1 = u1 - ss         # u1 = 1-ss
-        u1u1 = u1.sq()       # u1u1 = u1^2
-
-        u2 = fe25519.one()
-        u2 = u2 + ss         # u2 = 1+ss
-        u2u2 = u2.sq()       # u2u2 = u2^2
-
-        v = fe25519.d * u1u1 # v = d*u1^2
-        v = -v               # v = -d*u1^2
-        v = v - u2u2         # v = -(d*u1^2)-u2^2
-
-        v_u2u2 = v * u2u2    # v_u2u2 = v*u2^2
-
-        (inv_sqrt, was_square) = fe25519.one().sqrt_ratio_m1_ristretto255(v_u2u2)
-
-        h = ge25519_p3()
-        h.X = inv_sqrt * u2
-        h.Y = inv_sqrt * h.X
-        h.Y = h.Y * v
-
-        h.X = h.X * s_
-        h.X = h.X + h.X
-        h.X = abs(h.X)
-        h.Y = u1 * h.Y
-        h.Z = fe25519.one()
-        h.T = h.X * h.Y
-
-        if ((1 - was_square) | h.T.is_negative() | h.Y.is_zero()) == 1:
-            return None
-
-        return h
-
     def to_bytes(self: ge25519_p3) -> bytearray:
+        """
+        Emit binary representation of this element.
+        """
         recip = self.Z.invert()
         x = self.X * recip
         y = self.Y * recip
@@ -538,6 +569,10 @@ class ge25519_p3(ge25519):
         return bs
 
     def to_bytes_ristretto255(self: ge25519_p3) -> bytes:
+        """
+        Emit binary representation of the Ristretto point that this
+        element represents.
+        """
         h = self
 
         u1 = h.Z + h.Y            # u1 = Z+Y
@@ -578,9 +613,8 @@ class ge25519_p3(ge25519):
 
 class ge25519_p1p1(ge25519):
     """
-    Specialized class for group elements representing points.
+    Specialized class for group elements representing elliptic curve points.
     """
-
     def __init__(
             self: ge25519_p1p1,
             X: fe25519 = None,
@@ -599,7 +633,29 @@ class ge25519_p1p1(ge25519):
         return q.dbl()
 
     @staticmethod
+    def madd(p: ge25519_p3, q: ge25519_precomp) -> ge25519_p1p1:
+        """
+        Method that supports scalar multiplication of a base element.
+        """
+        r = ge25519_p1p1()
+        r.X = p.Y + p.X
+        r.Y = p.Y - p.X
+        r.Z = r.X * q.yplusx
+        r.Y = r.Y * q.yminusx
+        r.T = q.xy2d * p.T
+        t0 = p.Z + p.Z
+        r.X = r.Z - r.Y
+        r.Y = r.Z + r.Y
+        r.Z = t0 + r.T
+        r.T = t0 - r.T
+        return r
+
+    @staticmethod
     def add(p: ge25519_p3, q: ge25519_cached) -> ge25519_p1p1:
+        """
+        Method that supports the implementation of an addition
+        operation for elliptic curve points.
+        """
         r = ge25519_p1p1()
         r.X = p.Y + p.X
         r.Y = p.Y - p.X
@@ -615,22 +671,11 @@ class ge25519_p1p1(ge25519):
         return r
 
     @staticmethod
-    def madd(p: ge25519_p3, q: ge25519_precomp) -> ge25519_p1p1:
-        r = ge25519_p1p1()
-        r.X = p.Y + p.X
-        r.Y = p.Y - p.X
-        r.Z = r.X * q.yplusx
-        r.Y = r.Y * q.yminusx
-        r.T = q.xy2d * p.T
-        t0 = p.Z + p.Z
-        r.X = r.Z - r.Y
-        r.Y = r.Z + r.Y
-        r.Z = t0 + r.T
-        r.T = t0 - r.T
-        return r
-
-    @staticmethod
     def sub(p: ge25519_p3, q: ge25519_cached) -> ge25519_p1p1:
+        """
+        Method that supports the implementation of a subtraction
+        operation for elliptic curve points.
+        """
         r = ge25519_p1p1()
         r.X = p.Y + p.X
         r.Y = p.Y - p.X
@@ -647,38 +692,41 @@ class ge25519_p1p1(ge25519):
 
 class ge25519_precomp(ge25519):
     """
-    Specialized class for group elements representing points
+    Specialized class for group elements corresponding to entries
     found in the table of precomputed points.
     """
-
-    base = None # Precomputed table.
+    _base = None # Precomputed table.
 
     @staticmethod
     def zero() -> ge25519_precomp:
+        """
+        Constant corresponding to the zero element.
+        """
         return ge25519_precomp(fe25519.one(), fe25519.one(), fe25519.zero())
 
     @staticmethod
-    def cmov8_base(pos: int, b: int) -> ge25519_precomp:
+    def _cmov8_base(pos: int, b: int) -> ge25519_precomp:
         # It is expected that the second argument is between -8 and 8.
-        return ge25519_precomp.cmov8(ge25519_precomp.base[pos], b)
+        return ge25519_precomp._cmov8(ge25519_precomp._base[pos], b)
 
     @staticmethod
-    def cmov8(precomp: Sequence[ge25519_cached], b: int) -> ge25519_precomp:
+    def _cmov8(precomp: Sequence[ge25519_cached], b: int) -> ge25519_precomp:
+        # pylint: disable=W0212
         bnegative = ge25519._negative(b)
         babs      = _signed_char(b - _signed_char((((-bnegative)%256) & _signed_char(b)) * (1 << 1)))
 
         t = ge25519_precomp.zero()
-        t.cmov(precomp[0], ge25519._equal(babs, 1))
-        t.cmov(precomp[1], ge25519._equal(babs, 2))
-        t.cmov(precomp[2], ge25519._equal(babs, 3))
-        t.cmov(precomp[3], ge25519._equal(babs, 4))
-        t.cmov(precomp[4], ge25519._equal(babs, 5))
-        t.cmov(precomp[5], ge25519._equal(babs, 6))
-        t.cmov(precomp[6], ge25519._equal(babs, 7))
-        t.cmov(precomp[7], ge25519._equal(babs, 8))
+        t._cmov(precomp[0], ge25519._equal(babs, 1))
+        t._cmov(precomp[1], ge25519._equal(babs, 2))
+        t._cmov(precomp[2], ge25519._equal(babs, 3))
+        t._cmov(precomp[3], ge25519._equal(babs, 4))
+        t._cmov(precomp[4], ge25519._equal(babs, 5))
+        t._cmov(precomp[5], ge25519._equal(babs, 6))
+        t._cmov(precomp[6], ge25519._equal(babs, 7))
+        t._cmov(precomp[7], ge25519._equal(babs, 8))
 
         minust = ge25519_precomp(t.yminusx.copy(), t.yplusx.copy(), -t.xy2d)
-        t.cmov(minust, bnegative)
+        t._cmov(minust, bnegative)
 
         return t
 
@@ -692,13 +740,13 @@ class ge25519_precomp(ge25519):
         self.yminusx = yminusx
         self.xy2d = xy2d
 
-    def cmov(self: ge25519_precomp, u: ge25519_precomp, b: int) -> ge25519_precomp:
+    def _cmov(self: ge25519_precomp, u: ge25519_precomp, b: int) -> ge25519_precomp:
         t = self
         t.yplusx = t.yplusx.cmov(u.yplusx, b)
         t.yminusx = t.yminusx.cmov(u.yminusx, b)
         t.xy2d = t.xy2d.cmov(u.xy2d, b)
 
-ge25519_precomp.base = ( # base[i][j] = (j+1)*256^i*B
+ge25519_precomp._base = ( # base[i][j] = (j+1)*256^i*B  # pylint: disable=W0212
     ( # 0/31
         ge25519_precomp(
             fe25519([1288382639258501, 245678601348599, 269427782077623, 1462984067271730, 137412439391563]),
@@ -2047,9 +2095,8 @@ ge25519_precomp.base = ( # base[i][j] = (j+1)*256^i*B
 
 class ge25519_cached(ge25519):
     """
-    Specialized class for group elements representing points.
+    Specialized class for group elements representing elliptic curve points.
     """
-
     def __init__(
             self: ge25519_cached,
             YplusX: fe25519 = None,
@@ -2064,9 +2111,13 @@ class ge25519_cached(ge25519):
 
     @staticmethod
     def zero() -> ge25519_cached:
+        """
+        Constant corresponding to the zero element.
+        """
         return ge25519_cached(fe25519.one(), fe25519.one(), fe25519.one(), fe25519.zero())
 
-    def cmov_cached(self: ge25519_cached, u: ge25519_cached, b: int): #ge25519_cmov_cached()
+    def _cmov_cached(self: ge25519_cached, u: ge25519_cached, b: int):
+        # pylint: disable=W0212
         t = self
         t.YplusX = t.YplusX.cmov(u.YplusX, b)
         t.YminusX = t.YminusX.cmov(u.YminusX, b)
@@ -2074,22 +2125,23 @@ class ge25519_cached(ge25519):
         t.T2d = t.T2d.cmov(u.T2d, b)
 
     @staticmethod
-    def cmov8_cached(cached: Sequence[ge25519_cached], b: int) -> ge25519_cached:
+    def _cmov8_cached(cached: Sequence[ge25519_cached], b: int) -> ge25519_cached:
+        # pylint: disable=W0212
         bnegative = ge25519._negative(b)
         babs      = _signed_char(b - _signed_char((((-bnegative)%256) & _signed_char(b)) * (1 << 1)))
 
         t = ge25519_cached.zero()
-        t.cmov_cached(cached[0], ge25519._equal(babs, 1))
-        t.cmov_cached(cached[1], ge25519._equal(babs, 2))
-        t.cmov_cached(cached[2], ge25519._equal(babs, 3))
-        t.cmov_cached(cached[3], ge25519._equal(babs, 4))
-        t.cmov_cached(cached[4], ge25519._equal(babs, 5))
-        t.cmov_cached(cached[5], ge25519._equal(babs, 6))
-        t.cmov_cached(cached[6], ge25519._equal(babs, 7))
-        t.cmov_cached(cached[7], ge25519._equal(babs, 8))
+        t._cmov_cached(cached[0], ge25519._equal(babs, 1))
+        t._cmov_cached(cached[1], ge25519._equal(babs, 2))
+        t._cmov_cached(cached[2], ge25519._equal(babs, 3))
+        t._cmov_cached(cached[3], ge25519._equal(babs, 4))
+        t._cmov_cached(cached[4], ge25519._equal(babs, 5))
+        t._cmov_cached(cached[5], ge25519._equal(babs, 6))
+        t._cmov_cached(cached[6], ge25519._equal(babs, 7))
+        t._cmov_cached(cached[7], ge25519._equal(babs, 8))
 
         minust = ge25519_cached(t.YminusX.copy(), t.YplusX.copy(), t.Z.copy(), -t.T2d)
-        t.cmov_cached(minust, bnegative)
+        t._cmov_cached(minust, bnegative)
 
         return t
 
