@@ -5,6 +5,9 @@ from unittest import TestCase
 
 from ge25519 import *
 
+# Constant for the number of input-output pairs to include in each test.
+TRIALS_PER_TEST = 16
+
 def check_or_generate(self, fs, bits):
     if bits is not None:
         self.assertTrue(all(fs)) # Check that all tests succeeded.
@@ -12,11 +15,11 @@ def check_or_generate(self, fs, bits):
         return bitlist(list(fs)).hex() # Return target bits for this test.
 
 def check_or_generate_operation(self, fun, lengths, bits):
-    fs = fountains(
+    fs = fountains( # Generate the input bit stream.
         sum(lengths),
         seed=bytes(0), # This is also the default; explicit for clarity.
-        limit=256,
-        bits=bits,
+        limit=min(TRIALS_PER_TEST, (len(bits) * 4)),
+        bits=bits[:(TRIALS_PER_TEST // 4)], # Reference output bit vector.
         function=fun
     )
     return check_or_generate(self, fs, bits)
