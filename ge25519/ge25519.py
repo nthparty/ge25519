@@ -538,7 +538,7 @@ class ge25519_p3(ge25519):
         # yed = (x-1)/(x+1)
         one = fe25519.one()
         yed = (x - one) * (x + one).invert()
-        s = yed.to_bytes()
+        s = bytearray(yed.to_bytes())
 
         # recover x
         s[31] |= x_sign
@@ -556,7 +556,7 @@ class ge25519_p3(ge25519):
 
         return p3
 
-    def to_bytes(self: ge25519_p3) -> bytearray:
+    def to_bytes(self: ge25519_p3) -> bytes:
         """
         Emit binary representation of this element.
         """
@@ -564,9 +564,9 @@ class ge25519_p3(ge25519):
         x = self.X * recip
         y = self.Y * recip
 
-        bs = y.to_bytes()
+        bs = bytearray(y.to_bytes())
         bs[31] ^= (x.is_negative() << 7)
-        return bs
+        return bytes(bs)
 
     def to_bytes_ristretto255(self: ge25519_p3) -> bytes:
         """

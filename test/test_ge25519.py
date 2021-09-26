@@ -7,7 +7,7 @@ from bitlist import bitlist
 from fountains import fountains
 from unittest import TestCase
 
-from ge25519 import *
+from ge25519.ge25519 import *
 
 # Constant for the number of input-output pairs to include in each test.
 TRIALS_PER_TEST = 16
