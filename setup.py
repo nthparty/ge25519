@@ -5,17 +5,17 @@ with open("README.rst", "r") as fh:
 
 # The lines below are parsed by `docs/conf.py`.
 name = "ge25519"
-version = "1.0.0"
+version = "1.1.0"
 
 setup(
     name=name,
     version=version,
     packages=[name,],
     install_requires=[
-        "fe25519~=1.0.0",
-        "parts~=1.1.2",
-        "bitlist~=0.5.1",
-        "fountains~=1.1.1",
+        "parts~=1.2",
+        "bitlist~=0.6",
+        "fe25519~=1.1",
+        "fountains~=1.2",
     ],
     license="MIT",
     url="https://github.com/nthparty/ge25519",
