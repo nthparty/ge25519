@@ -4,7 +4,7 @@ ge25519
 
 Pure Python data structure for working with Ed25519 (and Ristretto) group elements and operations.
 
-|pypi| |readthedocs| |travis| |coveralls|
+|pypi| |readthedocs| |actions| |coveralls|
 
 .. |pypi| image:: https://badge.fury.io/py/ge25519.svg
    :target: https://badge.fury.io/py/ge25519
@@ -14,9 +14,9 @@ Pure Python data structure for working with Ed25519 (and Ristretto) group elemen
    :target: https://ge25519.readthedocs.io/en/latest/?badge=latest
    :alt: Read the Docs documentation status.
 
-.. |travis| image:: https://app.travis-ci.com/nthparty/ge25519.svg?branch=main
-   :target: https://app.travis-ci.com/nthparty/ge25519
-   :alt: Travis CI build status.
+.. |actions| image:: https://github.com/nthparty/ge25519/workflows/lint-test-cover-docs/badge.svg
+   :target: https://github.com/nthparty/ge25519/actions/workflows/lint-test-cover-docs.yml
+   :alt: GitHub Actions status.
 
 .. |coveralls| image:: https://coveralls.io/repos/github/nthparty/ge25519/badge.svg?branch=main
    :target: https://coveralls.io/github/nthparty/ge25519?branch=main
