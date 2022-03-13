@@ -5,17 +5,17 @@ with open("README.rst", "r") as fh:
 
 # The lines below are parsed by `docs/conf.py`.
 name = "ge25519"
-version = "1.1.0"
+version = "1.2.0"
 
 setup(
     name=name,
     version=version,
     packages=[name,],
     install_requires=[
-        "parts~=1.2",
-        "bitlist~=0.6",
-        "fe25519~=1.1",
-        "fountains~=1.2",
+        "parts~=1.3",
+        "bitlist~=0.7",
+        "fe25519~=1.2",
+        "fountains~=1.3",
     ],
     license="MIT",
     url="https://github.com/nthparty/ge25519",
@@ -25,6 +25,4 @@ setup(
                 "(and Ristretto) group elements and operations.",
     long_description=long_description,
     long_description_content_type="text/x-rst",
-    test_suite="nose.collector",
-    tests_require=["nose"],
 )
