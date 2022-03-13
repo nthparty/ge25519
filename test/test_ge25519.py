@@ -2,23 +2,31 @@
 Test suite containing functional unit tests for the exported primitives and
 classes.
 """
+from unittest import TestCase
 from parts import parts
 from bitlist import bitlist
 from fountains import fountains
-from unittest import TestCase
 
-from ge25519.ge25519 import *
+from ge25519.ge25519 import * # pylint: disable=W0614
 
 # Constant for the number of input-output pairs to include in each test.
 TRIALS_PER_TEST = 16
 
 def check_or_generate(self, fs, bits):
-    if bits is not None:
-        self.assertTrue(all(fs)) # Check that all tests succeeded.
-    else:
+    """
+    Wrapper that enables switching between performing a test or
+    generating test input bit vectors compatible with `fountains`.
+    """
+    if bits is None:
         return bitlist(list(fs)).hex() # Return target bits for this test.
+    self.assertTrue(all(fs)) # Check that all tests succeeded.
+    return None
 
 def check_or_generate_operation(self, fun, lengths, bits):
+    """
+    Wrapper that enables switching between performing a test or
+    generating test input bit vectors compatible with `fountains`.
+    """
     fs = fountains( # Generate the input bit stream.
         sum(lengths),
         seed=bytes(0), # This is also the default; explicit for clarity.
@@ -29,6 +37,9 @@ def check_or_generate_operation(self, fun, lengths, bits):
     return check_or_generate(self, fs, bits)
 
 class Test_ge25519(TestCase):
+    """
+    Tests for all class methods.
+    """
     def test_is_canonical(
             self,
             bits='ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
@@ -92,7 +103,7 @@ class Test_ge25519(TestCase):
         return check_or_generate_operation(self, fun, [32], bits)
 
     def test_scalar_mult(
-            self, 
+            self,
             bits='242fd0294a256e12f5a82955d223baeab5a04b7db5f9d46552f34b08a858e9a8'
         ):
         def fun(bs):
@@ -111,8 +122,7 @@ class Test_ge25519(TestCase):
             self,
             bits='baf12de24e54deae0aa116816bf5eee23b1168c78e892372e08a9884de9d4c1b'
         ):
-        fun = lambda bs: ge25519_p3.from_hash_ristretto255(bs)
-        return check_or_generate_operation(self, fun, [64], bits)
+        return check_or_generate_operation(self, ge25519_p3.from_hash_ristretto255, [64], bits)
 
     def test_from_bytes_ristretto255(
             self,
@@ -141,8 +151,9 @@ class Test_ge25519(TestCase):
     def test_madd(self, bits='4b4d0b3a86c787f295d53e4a42656ba2ba6123f14a819b3c2d544f574d0030bb'):
         def fun(bs):
             (p3, i, j) = (ge25519_p3.from_bytes(bs[:32]), bs[32]%32, (bs[32]//32)%8)
+            # pylint: disable=W0212
             p2 = ge25519_p2.from_p1p1(ge25519_p1p1.madd(p3, ge25519_precomp._base[i][j]))
-            return ge25519_p3.from_p1p1(p2.dbl()).to_bytes()
+            return ge25519_p3.from_p1p1(p2.dbl()).to_bytes() # pylint: disable=W0212
         return check_or_generate_operation(self, fun, [32, 1], bits)
 
     def test_sub(self, bits='c349d67e124af7943ee8ceeaf774c43fca0472c245dad7e52585c62e71343082'):
@@ -158,6 +169,7 @@ class Test_ge25519(TestCase):
             bits='450fa303840940b93e104413b952865464b0fffc8321b030ac956537029bf61e'
         ):
         def fun(bs):
+            # pylint: disable=W0212
             (pos, b) = (bs[0]%32, (bs[0]//32)%8)
             precomp = ge25519_precomp._cmov8_base(pos, b)
             return precomp.yplusx.to_bytes() +\
@@ -173,7 +185,7 @@ class Test_ge25519(TestCase):
             ((bs1, bs2), b) = (parts(bs, length=32), bs[-1]%2)
             cached1 = ge25519_cached.from_p3(ge25519_p3.from_bytes(bs1))
             cached2 = ge25519_cached.from_p3(ge25519_p3.from_bytes(bs2))
-            cached1._cmov_cached(cached2, b)
+            cached1._cmov_cached(cached2, b) # pylint: disable=W0212
             return cached1.YplusX.to_bytes() +\
                 cached1.YminusX.to_bytes() +\
                 cached1.Z.to_bytes() +\

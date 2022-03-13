@@ -18,7 +18,7 @@ jobs:
       - name: Lint and test module.
         run: |
           pip install -U pylint pytest pytest-cov .
-          python -m pylint ge25519 # Check against linting rules.
+          python -m pylint ge25519 ./test/test_ge25519.py # Check against linting rules.
           python -m pytest # Run tests.
       - name: Publish coverage results.
         run: |
