@@ -3,6 +3,8 @@ Test suite containing functional unit tests for the exported primitives and
 classes.
 """
 # pylint: disable=missing-function-docstring
+from __future__ import annotations
+from typing import Union, Optional, Callable, Iterable
 from unittest import TestCase
 from parts import parts
 from bitlist import bitlist
@@ -13,10 +15,14 @@ from ge25519.ge25519 import * # pylint: disable=wildcard-import,unused-wildcard-
 # Constant for the number of input-output pairs to include in each test.
 TRIALS_PER_TEST = 16
 
-def check_or_generate(testcase, fs, bits):
+def check_or_generate(
+        testcase: TestCase,
+        fs: Union[Iterable[int], Iterable[bool]],
+        bits: Optional[str]
+    ) -> Optional[str]:
     """
     Wrapper that enables switching between performing a test or
-    generating test input bit vectors compatible with `fountains`.
+    generating specifications compatible with :obj:`fountains`.
     """
     if bits is None:
         return bitlist(list(fs)).hex() # Return target bits for this test.
@@ -24,10 +30,15 @@ def check_or_generate(testcase, fs, bits):
     testcase.assertTrue(all(fs)) # Check that all tests succeeded.
     return None # Do not return a test input.
 
-def check_or_generate_operation(testcase, fun, lengths, bits):
+def check_or_generate_operation(
+        testcase: TestCase,
+        fun: Union[Callable[[bytes], bytes], Callable[[bytes], bitlist]],
+        lengths: Iterable[int],
+        bits: Optional[str]
+    ):
     """
     Wrapper that enables switching between performing a test or
-    generating test input bit vectors compatible with `fountains`.
+    generating specifications compatible with :obj:`fountains`.
     """
     fs = fountains( # Generate the input bit stream.
         sum(lengths),
@@ -196,7 +207,7 @@ class Test_ge25519(TestCase):
         return check_or_generate_operation(self, fun, [32, 32], bits)
 
 if __name__ == '__main__':
-    # Generate reference bit vectors for tests.
+    # Generate specifications for tests.
     test_ge25519 = Test_ge25519()
     for m in [m for m in dir(test_ge25519) if m.startswith('test_')]:
         print(m + ': ' + getattr(test_ge25519, m)(bits=None))
