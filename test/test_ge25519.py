@@ -13,7 +13,7 @@ from fountains import fountains
 from ge25519.ge25519 import * # pylint: disable=wildcard-import,unused-wildcard-import
 
 # Constant for the number of input-output pairs to include in each test.
-TRIALS_PER_TEST = 16
+TRIALS_PER_TEST = 256
 
 def check_or_generate(
         testcase: TestCase,
