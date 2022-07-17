@@ -1,12 +1,13 @@
 """
-Pure Python data structure for working with Ed25519 (and Ristretto)
+Pure-Python data structure for working with Ed25519 (and Ristretto)
 group elements and operations.
 """
+# pylint: disable=missing-function-docstring
 from __future__ import annotations
-from typing import Sequence, NewType
+from typing import NewType, Sequence
 import doctest
 import sys
-from fe25519 import *
+from fe25519 import * # pylint: disable=wildcard-import
 
 # Constants and custom types used within this module.
 _TWO_TO_64 = 2 ** 64
@@ -27,7 +28,7 @@ class ge25519:
     The public interface of this class and those of derived classes are
     defined primarily to support the representation of elliptic curve
     points and the implementation of common operations over those points
-    (e.g., as in the `oblivious <https://pypi.org/project/oblivious>`_
+    (*e.g.*, as in the `oblivious <https://pypi.org/project/oblivious>`__
     library).
     """
     _blacklist = None # Precomputed table.
@@ -71,11 +72,17 @@ class ge25519:
         c: Sequence[unsigned_char] = [0]*7
         for j in range(31):
             for i in range(7):
-                c[i] |= s[j] ^ ge25519._blacklist[i][j]
+                c[i] |= (
+                    s[j] ^
+                    ge25519._blacklist[i][j] # pylint: disable=unsubscriptable-object
+                )
 
         j = 31
         for i in range(7):
-            c[i] |= (s[j] & 0x7f) ^ ge25519._blacklist[i][j]
+            c[i] |= (
+                (s[j] & 0x7f) ^
+                ge25519._blacklist[i][j] # pylint: disable=unsubscriptable-object
+            )
 
         k = 0
         for i in range(7):
@@ -83,7 +90,7 @@ class ge25519:
 
         return (k >> 8) & 1
 
-ge25519._blacklist = [ # pylint: disable=W0212
+ge25519._blacklist = [ # pylint: disable=protected-access
     # 0 (order 4)
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -200,7 +207,7 @@ class ge25519_p3(ge25519):
         x_sqrtm1 = h.X * fe25519.sqrtm1 # x*sqrt(-1)
         h.X = h.X.cmov(x_sqrtm1, 1 - has_m_root)
 
-        negx = -h.X
+        negx = -h.X # pylint: disable=invalid-unary-operand-type # Cannot be ``None``.
         h.X = h.X.cmov(negx, h.X.is_negative() ^ (bs[31] >> 7))
         h.T = h.X * h.Y
         h.root_check = (has_m_root | has_p_root) - 1
@@ -379,7 +386,7 @@ class ge25519_p3(ge25519):
         h = ge25519_p3.zero()
 
         for i in range(1, 64, 2):
-            t = ge25519_precomp._cmov8_base(i // 2, e[i]) # pylint: disable=W0212
+            t = ge25519_precomp._cmov8_base(i // 2, e[i]) # pylint: disable=protected-access
             r = ge25519_p1p1.madd(h, t)
             h = ge25519_p3.from_p1p1(r)
 
@@ -393,7 +400,7 @@ class ge25519_p3(ge25519):
         h = ge25519_p3.from_p1p1(r)
 
         for i in range(0, 64, 2):
-            t = ge25519_precomp._cmov8_base(i // 2, e[i]) # pylint: disable=W0212
+            t = ge25519_precomp._cmov8_base(i // 2, e[i]) # pylint: disable=protected-access
             r = ge25519_p1p1.madd(h, t)
             h = ge25519_p3.from_p1p1(r)
 
@@ -456,7 +463,7 @@ class ge25519_p3(ge25519):
         h = ge25519_p3.zero()
 
         for i in range(63, 0, -1):
-            t = ge25519_cached._cmov8_cached(pi, e[i]) # pylint: disable=W0212
+            t = ge25519_cached._cmov8_cached(pi, e[i]) # pylint: disable=protected-access
 
             r = ge25519_p1p1.add(h, t)
             s = ge25519_p2.from_p1p1(r)
@@ -470,7 +477,7 @@ class ge25519_p3(ge25519):
 
             h = ge25519_p3.from_p1p1(r) # *16
 
-        t = ge25519_cached._cmov8_cached(pi, e[0]) # pylint: disable=W0212
+        t = ge25519_cached._cmov8_cached(pi, e[0]) # pylint: disable=protected-access
         r = ge25519_p1p1.add(h, t)
         return ge25519_p3.from_p1p1(r)
 
@@ -707,11 +714,14 @@ class ge25519_precomp(ge25519):
     @staticmethod
     def _cmov8_base(pos: int, b: int) -> ge25519_precomp:
         # It is expected that the second argument is between -8 and 8.
-        return ge25519_precomp._cmov8(ge25519_precomp._base[pos], b)
+        return ge25519_precomp._cmov8(
+            ge25519_precomp._base[pos], # pylint: disable=unsubscriptable-object
+            b
+        )
 
     @staticmethod
     def _cmov8(precomp: Sequence[ge25519_cached], b: int) -> ge25519_precomp:
-        # pylint: disable=W0212
+        # pylint: disable=protected-access
         bnegative = ge25519._negative(b)
         babs      = _signed_char(b - _signed_char((((-bnegative)%256) & _signed_char(b)) * (1 << 1)))
 
@@ -725,7 +735,11 @@ class ge25519_precomp(ge25519):
         t._cmov(precomp[6], ge25519._equal(babs, 7))
         t._cmov(precomp[7], ge25519._equal(babs, 8))
 
-        minust = ge25519_precomp(t.yminusx.copy(), t.yplusx.copy(), -t.xy2d)
+        minust = ge25519_precomp(
+            t.yminusx.copy(),
+            t.yplusx.copy(),
+            -t.xy2d # pylint: disable=invalid-unary-operand-type # Cannot be ``None``.
+        )
         t._cmov(minust, bnegative)
 
         return t
@@ -746,7 +760,7 @@ class ge25519_precomp(ge25519):
         t.yminusx = t.yminusx.cmov(u.yminusx, b)
         t.xy2d = t.xy2d.cmov(u.xy2d, b)
 
-ge25519_precomp._base = ( # base[i][j] = (j+1)*256^i*B  # pylint: disable=W0212
+ge25519_precomp._base = ( # base[i][j] = (j+1)*256^i*B  # pylint: disable=protected-access
     ( # 0/31
         ge25519_precomp(
             fe25519([1288382639258501, 245678601348599, 269427782077623, 1462984067271730, 137412439391563]),
@@ -2117,7 +2131,7 @@ class ge25519_cached(ge25519):
         return ge25519_cached(fe25519.one(), fe25519.one(), fe25519.one(), fe25519.zero())
 
     def _cmov_cached(self: ge25519_cached, u: ge25519_cached, b: int):
-        # pylint: disable=W0212
+        # pylint: disable=protected-access
         t = self
         t.YplusX = t.YplusX.cmov(u.YplusX, b)
         t.YminusX = t.YminusX.cmov(u.YminusX, b)
@@ -2126,7 +2140,7 @@ class ge25519_cached(ge25519):
 
     @staticmethod
     def _cmov8_cached(cached: Sequence[ge25519_cached], b: int) -> ge25519_cached:
-        # pylint: disable=W0212
+        # pylint: disable=protected-access
         bnegative = ge25519._negative(b)
         babs      = _signed_char(b - _signed_char((((-bnegative)%256) & _signed_char(b)) * (1 << 1)))
 
@@ -2140,7 +2154,12 @@ class ge25519_cached(ge25519):
         t._cmov_cached(cached[6], ge25519._equal(babs, 7))
         t._cmov_cached(cached[7], ge25519._equal(babs, 8))
 
-        minust = ge25519_cached(t.YminusX.copy(), t.YplusX.copy(), t.Z.copy(), -t.T2d)
+        minust = ge25519_cached(
+            t.YminusX.copy(),
+            t.YplusX.copy(),
+            t.Z.copy(),
+            -t.T2d # pylint: disable=invalid-unary-operand-type # Cannot be ``None``.
+        )
         t._cmov_cached(minust, bnegative)
 
         return t
@@ -2149,5 +2168,5 @@ class ge25519_cached(ge25519):
     def from_p3(p: ge25519_p3) -> ge25519_cached:
         return ge25519_cached(p.Y + p.X, p.Y - p.X, p.Z.copy(), p.T * fe25519.d2)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     doctest.testmod() # pragma: no cover

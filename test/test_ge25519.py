@@ -2,27 +2,29 @@
 Test suite containing functional unit tests for the exported primitives and
 classes.
 """
+# pylint: disable=missing-function-docstring
 from unittest import TestCase
 from parts import parts
 from bitlist import bitlist
 from fountains import fountains
 
-from ge25519.ge25519 import * # pylint: disable=W0614
+from ge25519.ge25519 import * # pylint: disable=wildcard-import,unused-wildcard-import
 
 # Constant for the number of input-output pairs to include in each test.
 TRIALS_PER_TEST = 16
 
-def check_or_generate(self, fs, bits):
+def check_or_generate(testcase, fs, bits):
     """
     Wrapper that enables switching between performing a test or
     generating test input bit vectors compatible with `fountains`.
     """
     if bits is None:
         return bitlist(list(fs)).hex() # Return target bits for this test.
-    self.assertTrue(all(fs)) # Check that all tests succeeded.
-    return None
 
-def check_or_generate_operation(self, fun, lengths, bits):
+    testcase.assertTrue(all(fs)) # Check that all tests succeeded.
+    return None # Do not return a test input.
+
+def check_or_generate_operation(testcase, fun, lengths, bits):
     """
     Wrapper that enables switching between performing a test or
     generating test input bit vectors compatible with `fountains`.
@@ -34,7 +36,7 @@ def check_or_generate_operation(self, fun, lengths, bits):
         bits=bits[:(TRIALS_PER_TEST // 4)] if bits is not None else None,
         function=fun
     )
-    return check_or_generate(self, fs, bits)
+    return check_or_generate(testcase, fs, bits)
 
 class Test_ge25519(TestCase):
     """
@@ -151,9 +153,9 @@ class Test_ge25519(TestCase):
     def test_madd(self, bits='4b4d0b3a86c787f295d53e4a42656ba2ba6123f14a819b3c2d544f574d0030bb'):
         def fun(bs):
             (p3, i, j) = (ge25519_p3.from_bytes(bs[:32]), bs[32]%32, (bs[32]//32)%8)
-            # pylint: disable=W0212
+            # pylint: disable=protected-access,unsubscriptable-object
             p2 = ge25519_p2.from_p1p1(ge25519_p1p1.madd(p3, ge25519_precomp._base[i][j]))
-            return ge25519_p3.from_p1p1(p2.dbl()).to_bytes() # pylint: disable=W0212
+            return ge25519_p3.from_p1p1(p2.dbl()).to_bytes()
         return check_or_generate_operation(self, fun, [32, 1], bits)
 
     def test_sub(self, bits='c349d67e124af7943ee8ceeaf774c43fca0472c245dad7e52585c62e71343082'):
@@ -169,11 +171,11 @@ class Test_ge25519(TestCase):
             bits='450fa303840940b93e104413b952865464b0fffc8321b030ac956537029bf61e'
         ):
         def fun(bs):
-            # pylint: disable=W0212
-            (pos, b) = (bs[0]%32, (bs[0]//32)%8)
-            precomp = ge25519_precomp._cmov8_base(pos, b)
-            return precomp.yplusx.to_bytes() +\
-                precomp.yminusx.to_bytes() +\
+            (pos, b) = (bs[0] % 32, (bs[0] // 32) % 8)
+            precomp = ge25519_precomp._cmov8_base(pos, b) # pylint: disable=protected-access
+            return \
+                precomp.yplusx.to_bytes() + \
+                precomp.yminusx.to_bytes() + \
                 precomp.xy2d.to_bytes()
         return check_or_generate_operation(self, fun, [1], bits)
 
@@ -185,15 +187,16 @@ class Test_ge25519(TestCase):
             ((bs1, bs2), b) = (parts(bs, length=32), bs[-1]%2)
             cached1 = ge25519_cached.from_p3(ge25519_p3.from_bytes(bs1))
             cached2 = ge25519_cached.from_p3(ge25519_p3.from_bytes(bs2))
-            cached1._cmov_cached(cached2, b) # pylint: disable=W0212
-            return cached1.YplusX.to_bytes() +\
-                cached1.YminusX.to_bytes() +\
-                cached1.Z.to_bytes() +\
+            cached1._cmov_cached(cached2, b) # pylint: disable=protected-access
+            return \
+                cached1.YplusX.to_bytes() + \
+                cached1.YminusX.to_bytes() + \
+                cached1.Z.to_bytes() + \
                 cached1.T2d.to_bytes()
         return check_or_generate_operation(self, fun, [32, 32], bits)
 
-if __name__ == "__main__":
-    # Generate reference bit lists for tests.
+if __name__ == '__main__':
+    # Generate reference bit vectors for tests.
     test_ge25519 = Test_ge25519()
     for m in [m for m in dir(test_ge25519) if m.startswith('test_')]:
         print(m + ': ' + getattr(test_ge25519, m)(bits=None))
