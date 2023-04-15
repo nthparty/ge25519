@@ -1,6 +1,6 @@
 [project]
 name = "ge25519"
-version = "1.3.0"
+version = "1.4.0"
 description = """\
     Pure-Python data structure for working with Ed25519 \
     (and Ristretto) group elements and operations.\
