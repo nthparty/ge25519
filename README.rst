@@ -28,8 +28,8 @@ This library provides a native Python implementation of `Ed25519 <https://ed2551
 
 The implementation is based upon and is compatible with the corresponding implementation of Ed25519 and Ristretto group elements used in `libsodium <https://github.com/jedisct1/libsodium>`__. For more information and background about the underlying mathematical structures and primitives, consult materials about `Curve25519 <https://cr.yp.to/ecdh.html>`__, the `Ristretto <https://ristretto.group>`__ group, and the related `Ed25519 <https://ed25519.cr.yp.to>`__ system.
 
-PInstallation and Usage
------------------------
+Installation and Usage
+----------------------
 This library is available as a `package on PyPI <https://pypi.org/project/ge25519>`__:
 
 .. code-block:: bash
