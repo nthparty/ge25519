@@ -66,7 +66,8 @@ autodoc_default_options = {
         '__weakref__',
         '__module__',
         '__hash__',
-        '__dict__'
+        '__dict__',
+        '__annotations__'
     ])
 }
 autodoc_preserve_defaults = True
