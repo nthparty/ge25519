@@ -20,6 +20,8 @@ jobs:
           pip install -U .[lint,test]
           python -m pylint ge25519 test/test_ge25519.py # Check against linting rules.
           python -m pytest # Run tests.
+          python src/ge25519/ge25519.py -v # Run tests via execution.
+          python test/test_ge25519.py -v # Test reference bit vector generation.
       - name: Publish coverage results.
         run: |
           pip install -U .[coveralls]
