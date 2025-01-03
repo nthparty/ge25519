@@ -13,7 +13,7 @@ authors = [
 readme = "README.rst"
 requires-python = ">=3.7"
 dependencies = [
-    "fe25519~=1.5"
+    "fe25519~=2.0"
 ]
 
 [project.urls]
