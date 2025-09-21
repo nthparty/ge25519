@@ -152,7 +152,7 @@ class ge25519_p3(ge25519):
     """
     Specialized class for group elements representing elliptic curve points.
     """
-    def __init__(
+    def __init__( # pylint: disable=too-many-positional-arguments
             self: ge25519_p3,
             X: fe25519 = None,
             Y: fe25519 = None,

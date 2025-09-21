@@ -80,17 +80,12 @@ autodoc_preserve_defaults = True
 
 def rtd_url_for_installed_version(name):
     prefix = 'https://' + name + '.readthedocs.io/en/'
-
-    if sys.version_info.major == 3 and sys.version_info.minor == 7:
-        import pkg_resources
-        return prefix + pkg_resources.get_distribution(name).version
-
     import importlib.metadata
     return prefix + importlib.metadata.version(name)
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
-    'fe25519': (rtd_url_for_installed_version('fe25519'), None),
+    'fe25519': (rtd_url_for_installed_version('fe25519'), None)
 }
 
 
@@ -103,7 +98,6 @@ html_theme = 'sphinx_rtd_theme'
 
 # Theme options for Read the Docs.
 html_theme_options = {
-    'display_version': True,
     'collapse_navigation': True,
     'navigation_depth': 1,
     'titles_only': True
